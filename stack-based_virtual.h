@@ -1,5 +1,12 @@
 #include<array>
+#include<string>
+#include<typeinfo>
 #include<assert.h>
+
+
+#ifdef _DEBUG
+std::string allocation_log;
+#endif
 
 template<typename base,size_t cap>
 class stack_virt
@@ -14,7 +21,7 @@ public:
         static_assert(std::is_base_of<base,target_type>::value || std::is_same<base,target_type>::value,"stack_virt<b,c> can be made with the construction of any class that derives from base, or is base itself");
         stack_virt<base,cap> ret;
         ret.set_state_constructed();
-        new (ret.get()) target_type(std::forward<arg_types>(args)...);
+        ret.call_constructor_on_data<target_type>(std::forward<arg_types>(args)...);
         return ret;
     }
 
@@ -38,7 +45,7 @@ public:
     template<typename b, size_t c>
     void operator=(stack_virt<b,c>&& a)
     {
-        get()->~base();
+        call_destructor_on_data();
         static_assert((std::is_base_of<base,b>::value || std::is_same<base,b>::value) && c<=cap, "to assign stack_virt<xb,xc>&& to stack_virt<yb,yc>, xb must be the same as or derive from yb, and xc must be less than or equal to yc");
         for(int i = 0; i != a.data.size(); ++i)
         {
@@ -181,11 +188,44 @@ public:
     {
         if(check_state_whether_constructed())
         {
-            get()->~base();
+            call_destructor_on_data();
         }
     }
 
 private:
+
+    template<typename target_type, typename...ts>
+    void call_constructor_on_data(ts&&...args)
+    {
+        #ifdef _DEBUG
+            allocation_log.append("construction of ");
+            allocation_log.append(typeid(target_type).name());
+            allocation_log.append(" into a pointer of ");
+            allocation_log.append(typeid(base).name());
+            allocation_log.push_back('\n');
+        #endif
+        new (get()) target_type(std::forward<ts>(args)...);
+    }
+
+    void call_destructor_on_data()
+    {
+        #ifdef _DEBUG
+            if constexpr(std::has_virtual_destructor<base>::value)
+            {
+                allocation_log.append("virtual destruction of ");
+                allocation_log.append(typeid(*get()).name());
+            }
+            else
+            {
+                allocation_log.append("nonvirtual destruction of ");
+                allocation_log.append(typeid(*get()).name());
+            }
+            allocation_log.append(" through base class ");
+            allocation_log.append(typeid(base).name());
+            allocation_log.push_back('\n');
+        #endif
+        get()->~base();
+    }
 
     void set_state_constructed()
     {
