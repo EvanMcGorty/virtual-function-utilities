@@ -2,7 +2,9 @@
 #include<typeinfo>
 #include"stack-based_virtual.h"
 
-//just as a namespace
+namespace mu
+{
+
 namespace variadic_utilities
 {
 
@@ -115,6 +117,7 @@ struct filter
 
 }
 
+
 template<typename base, typename...derived>
 class algebraic
 {
@@ -130,6 +133,16 @@ public:
     {
         static_assert(variadic_utilities::is_one_of<target,derived...>(),"target type must be one of the listed derived classes");
         return algebraic{dt::template make<target>(std::forward<arg_types>(args)...)};
+    }
+
+    static algebraic<base,derived...> make_nullval()
+    {
+        return algebraic{dt::make_nullval()};
+    }
+
+    bool is_nullval() const
+    {
+        return data.is_nullval();
     }
 
     algebraic(algebraic const& a) = delete;
@@ -166,7 +179,7 @@ public:
     bool can_downcast() const
     {
         static_assert(variadic_utilities::is_one_of<d,derived...>(),"can only downcast to one of the derived types listed as a template parameter");
-        return data.can_downcast<d>();
+        return data.template can_downcast<d>();
     }
 
     template<typename d>
@@ -181,14 +194,14 @@ public:
     d* downcast_get()
     {
         static_assert(variadic_utilities::is_one_of<d,derived...>(),"can only downcast to one of the derived types listed as a template parameter");
-        return data.downcast_get<d>(); //stack_virt already asserts can_downcast<d>
+        return data.template downcast_get<d>(); //stack_virt already asserts can_downcast<d>
     }
 
     template<typename d>
     d const* downcast_get() const
     {
         static_assert(variadic_utilities::is_one_of<d,derived...>(),"can only downcast to one of the derived types listed as a template parameter");
-        return data.downcast_get<d>(); //stack_virt already asserts can_downcast<d>
+        return data.template downcast_get<d>(); //stack_virt already asserts can_downcast<d>
     }
 
     base& operator*()
@@ -209,6 +222,18 @@ public:
     base const* operator->() const
     {
         return get();
+    }
+
+    
+    static algebraic<base,derived...> unsafe_from_stack_virt(dt&& a)
+    {
+        algebraic<base,derived...> ret{a};
+        return ret;
+    }
+
+    dt release() &&
+    {
+        return std::move(data);
     }
 
     
@@ -249,3 +274,5 @@ private:
 
 
 };
+
+}

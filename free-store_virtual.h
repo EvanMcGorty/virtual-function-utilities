@@ -2,10 +2,12 @@
 #include<memory>
 #include<vector>
 
+namespace mu
+{
 
 //alternative to unique_ptr<t>
 //it owns its data so that when it is const, the data it points to is const.
-//is never nullptr until it is moved out of
+//is never nullptr until it is moved out of or set the value of virt<t>::make_nullval()
 template<typename t>
 class virt
 {
@@ -19,11 +21,20 @@ public:
         return virt<t>{std::unique_ptr<t>{std::make_unique<target_type>(std::forward<ts>(args)...)}};
     }
 
+    static virt<t> make_nullval()
+    {
+        data = nullptr;
+    }
+
+    bool is_nullval() const
+    {
+        return data == nullptr;
+    }
+
     //compatibility with unique_ptrs
     //may not be a nullptr
     virt(std::unique_ptr<t>&& a)
     {
-        assert(a != nullptr);
         data = std::move(a);
     }
 
@@ -136,14 +147,12 @@ public:
     //write access pointer to data. Does not release ownership of data.
     t* get()
     {
-        assert(data!=nullptr);
         return data.get();
     }
 
     //write access pointer to data. Does not release ownership of data.
     t const* get() const
     {
-        assert(data!=nullptr);
         return data.get();
     }
 
@@ -157,3 +166,5 @@ private:
     //wrapped data
     std::unique_ptr<t> data;
 };
+
+}
