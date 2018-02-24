@@ -236,7 +236,7 @@ private:
     algebraic(dt&& a) :
         data(std::move(a))
     {
-        perform_fundamental_static_assertions()
+        perform_fundamental_static_assertions();
     }
 
     void operator=(dt&& a)
