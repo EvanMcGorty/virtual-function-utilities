@@ -117,7 +117,7 @@ public:
 
     
 
-    
+
 
     template<typename d>
     bool can_downcast() const&
@@ -157,6 +157,13 @@ public:
         return static_cast<d*>(get());
     }
 
+    
+    static constexpr size_t view_cap()
+    {
+        return cap;
+    }
+
+
     stack_virt<base,sizeof(base)> shrink() &&
     {
         static_assert(std::is_final<base>::value,"in order to shrink stack_virt<xb,xc> to stack_virt<xb,sizeof(xb)>, xb must not be a final class");
@@ -170,7 +177,7 @@ public:
         return ret;
     }
 
-    //trusts you that the dynamically stored type is not bigger than newcap
+    //trusts user that the dynamically stored type is not bigger than newcap
     template<size_t newcap> 
     stack_virt<base, newcap> unsafe_set_cap() &&
     {
