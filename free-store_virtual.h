@@ -69,21 +69,21 @@ public:
         return virt<b>{std::unique_ptr<b>{static_cast<b*>(data.release())}};
     }
 
-    //like implicit upcasting
-    template<typename b>
-    b* upcast_get()
-    {
-        static_assert(std::is_base_of<b,t>::value || std::is_same<b,t>::value,"to upcast virt<x>&& to virt<y>, x must derive from y");
-        return static_cast<b*>(data.get());
-    }
+    // //like implicit upcasting
+    // template<typename b>
+    // b* upcast_get()
+    // {
+    //     static_assert(std::is_base_of<b,t>::value || std::is_same<b,t>::value,"to upcast virt<x>&& to virt<y>, x must derive from y");
+    //     return static_cast<b*>(data.get());
+    // }
 
-    //like implicit upcasting
-    template<typename b>
-    b const* upcast_get() const
-    {
-        static_assert(std::is_base_of<b,t>::value || std::is_same<b,t>::value,"to upcast virt<x>&& to virt<y>, x must derive from y");
-        return static_cast<b const*>(data.get());
-    }
+    // //like implicit upcasting
+    // template<typename b>
+    // b const* upcast_get() const
+    // {
+    //     static_assert(std::is_base_of<b,t>::value || std::is_same<b,t>::value,"to upcast virt<x>&& to virt<y>, x must derive from y");
+    //     return static_cast<b const*>(data.get());
+    // }
     
     //like trying a dynamic cast
     template<typename d>
