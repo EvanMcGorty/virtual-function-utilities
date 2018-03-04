@@ -221,9 +221,10 @@ public:
     stack_virt<base,sizeof(base)> shrink() &&
     {
         static_assert(std::is_final<base>::value,"in order to shrink stack_virt<xb,xc> to stack_virt<xb,sizeof(xb)>, xb must not be a final class");
+        
+        stack_virt<base,sizeof(base)> ret;
         if(check_state_whether_nonnull())
         {
-            stack_virt<base,sizeof(base)> ret;
             ret.set_state_nonnull();
             for(int i = 0; i!=ret.data.size(); ++i)
             {
