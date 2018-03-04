@@ -36,6 +36,7 @@ public:
     {
         stack_virt<base,cap> ret;
         ret.set_state_not_nonnull();
+        return ret;
     }
 
     bool is_nullval() const
