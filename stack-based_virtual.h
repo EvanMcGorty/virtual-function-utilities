@@ -219,10 +219,15 @@ public:
     }
 
 
+    bool is_only_base() const
+    {
+        return typeid(get()) == typeid(base);
+    }
+
     stack_virt<base,sizeof(base)> shrink() &&
     {
-        static_assert(std::is_final<base>::value,"in order to shrink stack_virt<xb,xc> to stack_virt<xb,sizeof(xb)>, xb must not be a final class");
-        
+        assert(is_only_base());
+
         stack_virt<base,sizeof(base)> ret;
         if(check_state_whether_nonnull())
         {
