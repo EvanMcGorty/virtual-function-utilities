@@ -211,7 +211,7 @@ public:
     {
         static_assert((std::is_base_of<base,d>::value || std::is_same<base,d>::value) && sizeof(d) <= cap,"to downcast stack_virt<xb,xc>&& to y*, yb must derive from xb and");
         assert(can_downcast<d>());
-        return static_cast<d*>(get());
+        return static_cast<d const*>(get());
     }
 
     
