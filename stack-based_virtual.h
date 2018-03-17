@@ -43,7 +43,7 @@ public:
 
     bool is_nullval() const
     {
-        return check_state_whether_nonnull();
+        return !check_state_whether_nonnull();
     }
 
     stack_virt(stack_virt const& a) = delete;
