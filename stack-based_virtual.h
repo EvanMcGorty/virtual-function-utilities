@@ -55,7 +55,8 @@ public:
     {
         static_assert(cap >= sizeof(base), "cap must be larger than the size of the base class");
         static_assert((std::is_base_of<base,b>::value || std::is_same<base,b>::value) && c<=cap, "to construct stack_virt<xb,xc> from stack_virt<yb,yc>&&, yb must be the same as or derive from xb, and yc must be less than or equal to xc");
-        if(a.check_state_whether_nonnull())
+		set_state_not_nonnull();
+		if(a.check_state_whether_nonnull())
         {
             set_state_nonnull();
             for(int i = 0; i != a.data.size(); ++i)
@@ -63,19 +64,19 @@ public:
                 data[i] = a.data[i];
             }
             a.set_state_not_nonnull();
-        }
-        else
-        {
-            set_state_not_nonnull();
         }
     }
 
     template<typename b, size_t c>
     void operator=(stack_virt<b,c>&& a)
     {
-        call_destructor_on_data();
         static_assert((std::is_base_of<base,b>::value || std::is_same<base,b>::value) && c<=cap, "to assign stack_virt<xb,xc>&& to stack_virt<yb,yc>, xb must be the same as or derive from yb, and xc must be less than or equal to yc");
-        if(a.check_state_whether_nonnull())
+		if (check_state_whether_nonnull())
+		{
+			call_destructor_on_data();
+			set_state_not_nonnull();
+		}
+		if(a.check_state_whether_nonnull())
         {
             set_state_nonnull();
             for(int i = 0; i != a.data.size(); ++i)
@@ -83,10 +84,6 @@ public:
                 data[i] = a.data[i];
             }
             a.set_state_not_nonnull();
-        }
-        else
-        {
-            set_state_not_nonnull();
         }
     }
 
@@ -273,6 +270,7 @@ public:
         if(check_state_whether_nonnull())
         {
             call_destructor_on_data();
+			set_state_not_nonnull();
         }
     }
 
@@ -304,7 +302,7 @@ private:
                 allocation_log.append("nonvirtual destruction of ");
                 allocation_log.append(typeid(*get()).name());
             }
-            allocation_log.append(" through base class ");
+            allocation_log.append(" through base ");
             allocation_log.append(typeid(base).name());
             allocation_log.push_back('\n');
         #endif
