@@ -13,6 +13,10 @@ namespace mu
 template<typename t>
 class virt
 {
+
+template<typename ot>
+friend class virt;
+
 public:
 
     //like make_unique
