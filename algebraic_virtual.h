@@ -233,7 +233,7 @@ public:
     
     static algebraic<base,derived...> unsafe_from_stack_virt(dt&& a)
     {
-        algebraic<base,derived...> ret{dt(a,iterate_find_move_functor<derived...>(typeid(a.get())))};
+        algebraic<base,derived...> ret{dt(a,iterate_find_move_functor<derived...>(typeid(*a.get())))};
         return ret;
     }
 
@@ -244,7 +244,7 @@ public:
 
     std::function<void(base*,base*)> move_functor() const
     {
-        return iterate_find_move_functor<derived...>(typeid(get()));
+        return iterate_find_move_functor<derived...>(typeid(*get()));
     }
 
 private:
@@ -281,17 +281,18 @@ private:
         template<typename...ts>
         static algebraic<newbase,ts...> change(algebraic&& self, variadic_utilities::variadic<ts...> to)
         {
+			auto all_move_functor = self.move_functor();
             stack_virt<base,algebraic<newbase,ts...>::dt::view_cap()> r1;
-            std::move(self.data).template unsafe_set_cap<algebraic<newbase,ts...>::dt::view_cap()>(r1,self.move_functor());
+            std::move(self.data).template unsafe_set_cap<algebraic<newbase,ts...>::dt::view_cap()>(r1,all_move_functor);
             stack_virt<newbase,algebraic<newbase,ts...>::dt::view_cap()> r2;
-            std::move(r1).template downcast<newbase>(r2,self.move_functor());
+            std::move(r1).template downcast<newbase>(r2, all_move_functor);
             return algebraic<newbase,ts...>{std::move(r2)};
         }
     };
 
 
     algebraic(dt&& a) :
-        data(std::move(a),iterate_find_move_functor<derived...>(typeid(a.get())))
+        data(std::move(a),iterate_find_move_functor<derived...>(typeid(*a.get())))
     {
         perform_fundamental_static_assertions();
     }
