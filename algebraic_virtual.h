@@ -171,7 +171,7 @@ public:
         data.assign(std::move(a.data), a.is_nullval() ? &null_mover<oldbase>::move_construct : a.move_functor());
     }
 
-    algebraic~() noexcept(true)
+    ~algebraic() noexcept(true)
     {}
 
     base* get()
