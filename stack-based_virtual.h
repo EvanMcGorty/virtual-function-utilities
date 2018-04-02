@@ -20,6 +20,14 @@ namespace mu
         }
     };
 
+	template<typename base>
+	class null_mover
+	{
+	public:
+		static void move_construct(base* from, base* to)
+		{}
+	};
+
 
 
 #ifdef _DEBUG
@@ -69,7 +77,6 @@ public:
             ret.set_state_nonnull();
         }
         ret.set_state_not_nonnull();
-        return ret;
     }
 
     bool is_nullval() const

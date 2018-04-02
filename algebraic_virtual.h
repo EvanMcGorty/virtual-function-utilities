@@ -157,7 +157,7 @@ public:
 
     template<typename oldbase,typename...oldderived>
     algebraic(algebraic<oldbase,oldderived...>&& a) :
-        algebraic(dt(std::move(a.data),a.move_functor()))
+        algebraic(dt(std::move(a.data), a.is_nullval() ? &null_mover<oldbase>::move_construct : a.move_functor()))
     {
         perform_fundamental_static_assertions();
         static_assert(variadic_utilities::is_subset<oldderived...>::template of<derived...>(),"cannot construct an algebraic<ts...> from an algebraic that could contain a type other than the ones in ts...");
@@ -168,7 +168,7 @@ public:
     void operator=(algebraic<oldbase,oldderived...>&& a)
     {
         static_assert(variadic_utilities::is_subset<oldderived...>::template of<derived...>(),"cannot construct an algebraic<ts...> from an algebraic that could contain a type other than the ones in ts...");
-        data.assign(dt(std::move(a.data),a.move_functor()));
+        data.assign(std::move(a.data),a.move_functor());
     }
 
     base* get()
@@ -233,8 +233,15 @@ public:
     
     static algebraic<base,derived...> unsafe_from_stack_virt(dt&& a)
     {
-        algebraic<base,derived...> ret{dt(a,iterate_find_move_functor<derived...>(typeid(*a.get())))};
-        return ret;
+		if (a.is_nullval())
+		{
+			return algebraic<base, derived...>::make_nullval();
+		}
+		else
+		{
+			algebraic<base, derived...> ret{ dt(a,iterate_find_move_functor<derived...>(typeid(*a.get()))) };
+			return ret;
+		}
     }
 
     dt release() &&
@@ -292,7 +299,7 @@ private:
 
 
     algebraic(dt&& a) :
-        data(std::move(a),iterate_find_move_functor<derived...>(typeid(*a.get())))
+        data((std::move(a)),a.is_nullval() ? &null_mover<base>::move_construct : iterate_find_move_functor<derived...>(typeid(*a.get())))
     {
         perform_fundamental_static_assertions();
     }
