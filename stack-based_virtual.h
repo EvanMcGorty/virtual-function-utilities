@@ -1,3 +1,5 @@
+#pragma once
+
 #include<array>
 #include<string>
 #include<typeinfo>
@@ -67,11 +69,12 @@ public:
             ret.set_state_nonnull();
         }
         ret.set_state_not_nonnull();
+        return ret;
     }
 
     bool is_nullval() const
     {
-        return check_state_whether_nonnull();
+        return !check_state_whether_nonnull();
     }
 
     stack_virt(stack_virt const& a) = delete;
@@ -83,15 +86,12 @@ public:
     {
         static_assert(cap >= sizeof(base), "cap must be larger than the size of the base class");
         static_assert((std::is_base_of<base,b>::value || std::is_same<base,b>::value) && c<=cap, "to construct stack_virt<xb,xc> from stack_virt<yb,yc>&&, yb must be the same as or derive from xb, and yc must be less than or equal to xc");
-        if(a.check_state_whether_nonnull())
+		set_state_not_nonnull();
+		if(a.check_state_whether_nonnull())
         {
             set_state_nonnull();
             move_functor(a.get(),get());
             a.set_state_not_nonnull();
-        }
-        else
-        {
-            set_state_not_nonnull();
         }
     }
 
@@ -99,16 +99,16 @@ public:
     void assign(stack_virt<b,c>&& a, std::function<void(base*,base*)> const& move_functor)
     {
         static_assert((std::is_base_of<base,b>::value || std::is_same<base,b>::value) && c<=cap, "to assign stack_virt<xb,xc>&& to stack_virt<yb,yc>, xb must be the same as or derive from yb, and xc must be less than or equal to yc");
-        call_destructor_on_data();
-        if(a.check_state_whether_nonnull())
+		if (check_state_whether_nonnull())
+		{
+			call_destructor_on_data();
+			set_state_not_nonnull();
+		}
+		if(a.check_state_whether_nonnull())
         {
             set_state_nonnull();
             move_functor(a.get(),get());
             a.set_state_not_nonnull();
-        }
-        else
-        {
-            set_state_not_nonnull();
         }
     }
 
@@ -245,7 +245,7 @@ public:
     {
         static_assert((std::is_base_of<base,d>::value || std::is_same<base,d>::value) && sizeof(d) <= cap,"to downcast stack_virt<xb,xc>&& to y*, yb must derive from xb and");
         assert(can_downcast<d>());
-        return static_cast<d*>(get());
+        return static_cast<d const*>(get());
     }
 
     
@@ -255,9 +255,13 @@ public:
     }
 
 
-    void shrink(stack_virt<base,sizeof(base)>& ret, std::function<void(base*,base*)> const& move_functor) &&
+    
+    
+
+    stack_virt<base,sizeof(base)> shrink(stack_virt<base,sizeof(base)>& ret, std::function<void(base*,base*)> const& move_functor) &&
     {
-        static_assert(std::is_final<base>::value,"in order to shrink stack_virt<xb,xc> to stack_virt<xb,sizeof(xb)>, xb must not be a final class");
+        assert(is_only_base());
+
         if(ret.check_state_whether_nonnull())
         {
             ret.call_destructor_on_data();
@@ -266,6 +270,7 @@ public:
         {
             ret.set_state_nonnull();
         }
+
         if(check_state_whether_nonnull())
         {
             ret.set_state_nonnull();
@@ -276,6 +281,11 @@ public:
         {
             ret.set_state_not_nonnull();
         }
+    }
+
+    bool is_only_base() const
+    {
+        return typeid(get()) == typeid(base);
     }
 
     //trusts user that the dynamically stored type is not bigger than newcap
@@ -307,6 +317,7 @@ public:
         if(check_state_whether_nonnull())
         {
             call_destructor_on_data();
+			set_state_not_nonnull();
         }
     }
 
@@ -338,7 +349,7 @@ private:
                 allocation_log.append("nonvirtual destruction of ");
                 allocation_log.append(typeid(*get()).name());
             }
-            allocation_log.append(" through base class ");
+            allocation_log.append(" through base ");
             allocation_log.append(typeid(base).name());
             allocation_log.push_back('\n');
         #endif

@@ -1,3 +1,5 @@
+#pragma once
+
 #include<iostream>
 #include<memory>
 #include<vector>
@@ -11,6 +13,10 @@ namespace mu
 template<typename t>
 class virt
 {
+
+template<typename ot>
+friend class virt;
+
 public:
 
     //like make_unique
@@ -23,7 +29,9 @@ public:
 
     static virt<t> make_nullval()
     {
-        data = nullptr;
+        virt<t> ret;
+        ret.data = nullptr;
+        return ret;
     }
 
     bool is_nullval() const

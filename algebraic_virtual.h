@@ -1,3 +1,5 @@
+#pragma once
+
 #include<array>
 #include<typeinfo>
 #include"stack-based_virtual.h"
