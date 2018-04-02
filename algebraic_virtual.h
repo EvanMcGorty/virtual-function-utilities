@@ -132,12 +132,16 @@ public:
     static algebraic<base,derived...> make(arg_types&&...args)
     {
         static_assert(variadic_utilities::is_one_of<target,derived...>(),"target type must be one of the listed derived classes");
-        return algebraic{dt::template make<target>(std::forward<arg_types>(args)...)};
+        dt ret;
+        dt::template make<target>(ret,std::forward<arg_types>(args)...);
+        return algebraic{std::move(ret)};
     }
 
     static algebraic<base,derived...> make_nullval()
     {
-        return algebraic{dt::make_nullval()};
+        dt ret;
+        dt::make_nullval(ret);
+        return algebraic{std::move(ret)};
     }
 
     bool is_nullval() const
@@ -151,7 +155,7 @@ public:
 
     template<typename oldbase,typename...oldderived>
     algebraic(algebraic<oldbase,oldderived...>&& a) :
-        algebraic(dt(std::move(a.data)))
+        algebraic(dt(std::move(a.data),a.move_functor()))
     {
         perform_fundamental_static_assertions();
         static_assert(variadic_utilities::is_subset<oldderived...>::template of<derived...>(),"cannot construct an algebraic<ts...> from an algebraic that could contain a type other than the ones in ts...");
@@ -162,7 +166,7 @@ public:
     void operator=(algebraic<oldbase,oldderived...>&& a)
     {
         static_assert(variadic_utilities::is_subset<oldderived...>::template of<derived...>(),"cannot construct an algebraic<ts...> from an algebraic that could contain a type other than the ones in ts...");
-        operator=(dt(std::move(a.data)));
+        data.assign(dt(std::move(a.data),a.move_functor()));
     }
 
     base* get()
@@ -227,7 +231,7 @@ public:
     
     static algebraic<base,derived...> unsafe_from_stack_virt(dt&& a)
     {
-        algebraic<base,derived...> ret{a};
+        algebraic<base,derived...> ret{dt(a,iterate_find_move_functor<derived...>(typeid(a.get())))};
         return ret;
     }
 
@@ -236,9 +240,32 @@ public:
         return std::move(data);
     }
 
-    
+    std::function<void(base*,base*)> move_functor() const
+    {
+        return iterate_find_move_functor<derived...>(typeid(get()));
+    }
 
 private:
+
+    template<typename t, typename...ts>
+    std::function<void(base*,base*)> iterate_find_move_functor(std::type_info const& cur_type) const
+    {
+        if(cur_type == typeid(t))
+        {
+            return &mover<t,base>::move_construct;
+        }
+        else
+        {
+            if constexpr(sizeof...(ts) == 0)
+            {
+                abort();
+            }
+            else
+            {
+                return iterate_find_move_functor<ts...>(cur_type);
+            }
+        }
+    }
 
     static constexpr void perform_fundamental_static_assertions()
     {
@@ -252,14 +279,17 @@ private:
         template<typename...ts>
         static algebraic<newbase,ts...> change(algebraic&& self, variadic_utilities::variadic<ts...> to)
         {
-            algebraic<newbase,ts...> ret{std::move(self.data).template unsafe_set_cap<algebraic<newbase,ts...>::dt::view_cap()>().template downcast<newbase>()};
-            return ret;
+            stack_virt<base,algebraic<newbase,ts...>::dt::view_cap()> r1;
+            std::move(self.data).template unsafe_set_cap<algebraic<newbase,ts...>::dt::view_cap()>(r1,self.move_functor());
+            stack_virt<newbase,algebraic<newbase,ts...>::dt::view_cap()> r2;
+            std::move(r1).template downcast<newbase>(r2,self.move_functor());
+            return algebraic<newbase,ts...>{std::move(r2)};
         }
     };
 
 
     algebraic(dt&& a) :
-        data(std::move(a))
+        data(std::move(a),iterate_find_move_functor<derived...>(typeid(a.get())))
     {
         perform_fundamental_static_assertions();
     }

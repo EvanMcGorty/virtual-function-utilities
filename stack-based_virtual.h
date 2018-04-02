@@ -2,9 +2,23 @@
 #include<string>
 #include<typeinfo>
 #include<assert.h>
+#include<functional>
 
 namespace mu
 {
+
+    template<typename derived,typename base>
+    class mover
+    {
+    public:
+        static void move_construct(base* from, base* to)
+        {
+            new (static_cast<derived*>(to)) derived{std::move(*static_cast<derived*>(from))};
+            from->~base();
+        }
+    };
+
+
 
 #ifdef _DEBUG
 std::string allocation_log;
@@ -21,20 +35,37 @@ class stack_virt
     friend class stack_virt;
 public:
 
-
-    template<typename target_type = base,typename...arg_types>
-    static stack_virt<base,cap> make(arg_types&&...args)
+    stack_virt()
     {
-        static_assert(std::is_base_of<base,target_type>::value || std::is_same<base,target_type>::value,"stack_virt<b,c> can be made with the construction of any class that derives from base, or is base itself");
-        stack_virt<base,cap> ret;
-        ret.set_state_nonnull();
-        ret.call_constructor_on_data<target_type>(std::forward<arg_types>(args)...);
-        return ret;
+        static_assert(cap >= sizeof(base), "cap must be larger than the size of the base class");
+        set_state_not_nonnull();
     }
 
-    static stack_virt<base,cap> make_nullval()
+    template<typename target_type = base,typename...arg_types>
+    static void make(stack_virt<base,cap>& ret, arg_types&&...args)
     {
-        stack_virt<base,cap> ret;
+        static_assert(std::is_base_of<base,target_type>::value || std::is_same<base,target_type>::value,"stack_virt<b,c> can be made with the construction of any class that derives from base, or is base itself");
+        if(ret.check_state_whether_nonnull())
+        {
+            ret.call_destructor_on_data();
+        }
+        else
+        {
+            ret.set_state_nonnull();
+        }
+        ret.call_constructor_on_data<target_type>(std::forward<arg_types>(args)...);
+    }
+
+    static void make_nullval(stack_virt<base,cap>& ret)
+    {
+        if(ret.check_state_whether_nonnull())
+        {
+            ret.call_destructor_on_data();
+        }
+        else
+        {
+            ret.set_state_nonnull();
+        }
         ret.set_state_not_nonnull();
     }
 
@@ -48,17 +79,14 @@ public:
     void operator=(stack_virt const& a) = delete;
 
     template<typename b, size_t c>
-    stack_virt(stack_virt<b,c>&& a)
+    stack_virt(stack_virt<b,c>&& a, std::function<void(base*,base*)> const& move_functor)
     {
         static_assert(cap >= sizeof(base), "cap must be larger than the size of the base class");
         static_assert((std::is_base_of<base,b>::value || std::is_same<base,b>::value) && c<=cap, "to construct stack_virt<xb,xc> from stack_virt<yb,yc>&&, yb must be the same as or derive from xb, and yc must be less than or equal to xc");
         if(a.check_state_whether_nonnull())
         {
             set_state_nonnull();
-            for(int i = 0; i != a.data.size(); ++i)
-            {
-                data[i] = a.data[i];
-            }
+            move_functor(a.get(),get());
             a.set_state_not_nonnull();
         }
         else
@@ -68,17 +96,14 @@ public:
     }
 
     template<typename b, size_t c>
-    void operator=(stack_virt<b,c>&& a)
+    void assign(stack_virt<b,c>&& a, std::function<void(base*,base*)> const& move_functor)
     {
-        call_destructor_on_data();
         static_assert((std::is_base_of<base,b>::value || std::is_same<base,b>::value) && c<=cap, "to assign stack_virt<xb,xc>&& to stack_virt<yb,yc>, xb must be the same as or derive from yb, and xc must be less than or equal to yc");
+        call_destructor_on_data();
         if(a.check_state_whether_nonnull())
         {
             set_state_nonnull();
-            for(int i = 0; i != a.data.size(); ++i)
-            {
-                data[i] = a.data[i];
-            }
+            move_functor(a.get(),get());
             a.set_state_not_nonnull();
         }
         else
@@ -88,10 +113,17 @@ public:
     }
 
     template<typename newbase>
-    stack_virt<newbase,cap> upcast() &&
+    void upcast(stack_virt<newbase,cap>& ret, std::function<void(base*,base*)> const& move_functor) &&
     {
         static_assert((std::is_base_of<newbase,base>::value || std::is_same<newbase,base>::value), "to upcast a stack_virt<xb,xc>&& into a stack_virt<yb,yc>, xb must derive from yb");
-        stack_virt ret;
+        if(ret.check_state_whether_nonnull())
+        {
+            ret.call_destructor_on_data();
+        }
+        else
+        {
+            ret.set_state_nonnull();
+        }
         if(check_state_whether_nonnull())
         {
             ret.set_state_nonnull();
@@ -101,28 +133,30 @@ public:
         {
             ret.set_state_not_nonnull();
         }
-        return stack_virt<newbase,cap>{std::move(*this)};
     }
 
     template<size_t newcap>
-    stack_virt<base,newcap> enlarge() &&
+    void enlarge(stack_virt<base,newcap>& ret, std::function<void(base*,base*)> const& move_functor) &&
     {
         static_assert(newcap>=cap,"can not enlarge to a smaller capacity");
-        stack_virt<base,newcap> ret;
+        if(ret.check_state_whether_nonnull())
+        {
+            ret.call_destructor_on_data();
+        }
+        else
+        {
+            ret.set_state_nonnull();
+        }
         if(check_state_whether_nonnull())
         {
             ret.set_state_nonnull();
-            for(int i = 0; i!=data.size(); ++i)
-            {
-                ret.data[i] = data[i];
-            }
+            move_functor(get(),ret.get());
             set_state_not_nonnull();
         }
         else
         {
             ret.set_state_not_nonnull();
         }
-        return ret;
     }
 
     base* get()
@@ -181,18 +215,21 @@ public:
     }
 
     template<typename d>
-    stack_virt<d,cap> downcast() &&
+    void downcast(stack_virt<d,cap>& ret, std::function<void(base*,base*)> const& move_functor) &&
     {
         static_assert((std::is_base_of<base,d>::value || std::is_same<base,d>::value) && sizeof(d) <= cap,"to downcast stack_virt<xb,xc>&& to y*, yb must derive from xb and");
         assert(can_downcast<d>());
-        stack_virt<d,cap> ret;
-        ret.set_state_nonnull();
-        for(int i = 0; i!=data.size(); ++i)
+        if(ret.check_state_whether_nonnull())
         {
-            ret.data[i] = data[i];
+            ret.call_destructor_on_data();
         }
+        else
+        {
+            ret.set_state_nonnull();
+        }
+        ret.set_state_nonnull();
+        move_functor(get(),ret.get());
         set_state_not_nonnull();
-        return ret;
     }
 
     template<typename d>
@@ -218,45 +255,51 @@ public:
     }
 
 
-    stack_virt<base,sizeof(base)> shrink() &&
+    void shrink(stack_virt<base,sizeof(base)>& ret, std::function<void(base*,base*)> const& move_functor) &&
     {
         static_assert(std::is_final<base>::value,"in order to shrink stack_virt<xb,xc> to stack_virt<xb,sizeof(xb)>, xb must not be a final class");
+        if(ret.check_state_whether_nonnull())
+        {
+            ret.call_destructor_on_data();
+        }
+        else
+        {
+            ret.set_state_nonnull();
+        }
         if(check_state_whether_nonnull())
         {
-            stack_virt<base,sizeof(base)> ret;
             ret.set_state_nonnull();
-            for(int i = 0; i!=ret.data.size(); ++i)
-            {
-                ret.data[i] = data[i];
-            }
+            move_functor(get(),ret.get());
             set_state_not_nonnull();
         }
         else
         {
             ret.set_state_not_nonnull();
         }
-        return ret;
     }
 
     //trusts user that the dynamically stored type is not bigger than newcap
     template<size_t newcap> 
-    stack_virt<base, newcap> unsafe_set_cap() &&
+    void unsafe_set_cap(stack_virt<base,newcap>& ret,std::function<void(base*,base*)> const& move_functor) &&
     {
-        stack_virt<base,newcap> ret;
+        if(ret.check_state_whether_nonnull())
+        {
+            ret.call_destructor_on_data();
+        }
+        else
+        {
+            ret.set_state_nonnull();
+        }
         if(check_state_whether_nonnull())
         {
             ret.set_state_nonnull();
-            for(int i = 0; i!=ret.data.size(); ++i)
-            {
-                ret.data[i] = data[i];
-            }
+            move_functor(get(),ret.get());
             set_state_not_nonnull();
         }
         else
         {
             ret.set_state_not_nonnull();
         }
-        return ret;
     }
 
     ~stack_virt()
@@ -318,11 +361,7 @@ private:
     }
 
 
-    stack_virt()
-    {
-        static_assert(cap >= sizeof(base), "cap must be larger than the size of the base class");
-        set_state_not_nonnull();
-    }
+    
 
     std::array<unsigned char,cap> data;
     bool is_nonnull; //there needs to be some representation of a null state after an r-value is moved out of
