@@ -156,7 +156,7 @@ public:
     void operator=(algebraic const& a) = delete;
 
     template<typename oldbase,typename...oldderived>
-    algebraic(algebraic<oldbase,oldderived...>&& a) :
+    algebraic(algebraic<oldbase,oldderived...>&& a) noexcept(true) :
         algebraic(dt(std::move(a.data), a.is_nullval() ? &null_mover<oldbase>::move_construct : a.move_functor()))
     {
         perform_fundamental_static_assertions();
@@ -165,11 +165,14 @@ public:
 
 
     template<typename oldbase,typename...oldderived>
-    void operator=(algebraic<oldbase,oldderived...>&& a)
+    void operator=(algebraic<oldbase,oldderived...>&& a) noexcept(true)
     {
         static_assert(variadic_utilities::is_subset<oldderived...>::template of<derived...>(),"cannot construct an algebraic<ts...> from an algebraic that could contain a type other than the ones in ts...");
         data.assign(std::move(a.data), a.is_nullval() ? &null_mover<oldbase>::move_construct : a.move_functor());
     }
+
+    algebraic~() noexcept(true)
+    {}
 
     base* get()
     {
