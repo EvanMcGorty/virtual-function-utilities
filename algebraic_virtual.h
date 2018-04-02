@@ -168,7 +168,7 @@ public:
     void operator=(algebraic<oldbase,oldderived...>&& a)
     {
         static_assert(variadic_utilities::is_subset<oldderived...>::template of<derived...>(),"cannot construct an algebraic<ts...> from an algebraic that could contain a type other than the ones in ts...");
-        data.assign(std::move(a.data),a.move_functor());
+        data.assign(std::move(a.data), a.is_nullval() ? &null_mover<oldbase>::move_construct : a.move_functor());
     }
 
     base* get()
