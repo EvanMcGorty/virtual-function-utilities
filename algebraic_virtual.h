@@ -62,18 +62,24 @@ constexpr size_t largest_class()
 template<typename subset_first, typename...subset>
 struct is_subset
 {
-    template<typename...superset>
-    static constexpr bool of()
-    {
-        if constexpr(sizeof...(subset) == 0)
-        {
-            return is_one_of<subset_first,superset...>();
-        }
-        else
-        {
-            return is_one_of<subset_first,superset...>() && is_subset<subset...>::template of<superset...>();
-        }
-    }
+
+	template<typename...superset>
+	static constexpr bool of()
+	{
+
+		return is_one_of<subset_first, superset...>() && is_subset<subset...>::template of<superset...>();
+
+	}
+};
+
+template<typename subset_only>
+struct is_subset<subset_only>
+{
+	template<typename...superset>
+	static constexpr bool of()
+	{
+		return is_one_of<subset_only, superset...>();
+	}
 };
 
 template<typename...list>
@@ -170,6 +176,7 @@ public:
         static_assert(variadic_utilities::is_subset<oldderived...>::template of<derived...>(),"cannot construct an algebraic<ts...> from an algebraic that could contain a type other than the ones in ts...");
         data.assign(std::move(a.data), a.is_nullval() ? &null_mover<oldbase>::move_construct : a.move_functor());
     }
+
 
     ~algebraic() noexcept(true)
     {}
